@@ -139,7 +139,7 @@ export default class PocketSync extends Plugin {
     const defaultLogLevel = process.env.BUILD === "prod" ? "info" : "debug";
     log.setDefaultLevel(defaultLogLevel);
 
-    log.info("Loading Pocket plugin");
+    log.info("Pocket plugin: onload method started.");
 
     this.settingsManager = new SettingsManager({
       loadSettings: async () => {

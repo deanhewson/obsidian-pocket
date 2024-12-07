@@ -126,42 +126,80 @@ export const getPocketItems: GetPocketItems = async (
 ) => {
   const GET_ITEMS_URL = "https://getpocket.com/v3/get";
   const nextTimestamp = Math.floor(Date.now() / 1000);
-
-  const requestOptions = {
-    consumer_key: CONSUMER_KEY,
-    access_token: accessToken,
-    since: !!lastUpdateTimestamp
-      ? new Number(lastUpdateTimestamp).toString()
-      : null,
-    detailType: "complete",
-    tag: pocketSyncTag,
+  const allItems: PocketGetItemsResponse = {
+    status: 0,
+    complete: 0,
+    list: {},
   };
+  let offset = 0;
+  const limit = 30; // Pocket API default limit
 
-  if (!!lastUpdateTimestamp) {
-    const humanReadable = new Date(lastUpdateTimestamp * 1000).toLocaleString();
-    log.info(`Fetching with Pocket item updates since ${humanReadable}`);
-  } else {
-    log.info(`Fetching all Pocket items`);
-  }
-
-  try {
-    const responseBody = await doRequest(GET_ITEMS_URL, requestOptions);
-    log.info(`Pocket items fetched.`);
-    const response = await responseBody;
-    const parsedResponse = JSON.parse(response);
-
-    return {
-      timestamp: nextTimestamp,
-      response: parsedResponse,
+  while (true) {
+    const requestOptions = {
+      consumer_key: CONSUMER_KEY,
+      access_token: accessToken,
+      since: !!lastUpdateTimestamp
+        ? new Number(lastUpdateTimestamp).toString()
+        : null,
+      detailType: "complete",
+      tag: pocketSyncTag,
+      count: limit.toString(),
+      offset: offset.toString(),
     };
-  } catch (err) {
-    const errorMessage = `Encountered error ${err} while fetching Pocket items`;
-    log.error(errorMessage);
-    new Notice(errorMessage);
 
-    throw err;
+    log.info(`Request Options: ${JSON.stringify(requestOptions, null, 2)}`);
+
+    if (!!lastUpdateTimestamp && offset === 0) {
+      const humanReadable = new Date(lastUpdateTimestamp * 1000).toLocaleString();
+      log.info(`Fetching with Pocket item updates since ${humanReadable}`);
+    } else if (offset === 0) {
+      log.info(`Fetching all Pocket items`);
+    } else {
+      log.info(`Fetching Pocket items with offset ${offset}`);
+    }
+
+    try {
+      const responseBody = await doRequest(GET_ITEMS_URL, requestOptions);
+      log.info(`Pocket items fetched. Raw response body: ${responseBody}`);
+      const response = JSON.parse(responseBody);
+
+      log.info(`Parsed Pocket API response: ${JSON.stringify(response, null, 2)}`);
+
+      if (!response.list) {
+        log.warn("Response list is null or undefined.");
+        break;
+      }
+
+      Object.assign(allItems.list, response.list);
+
+      log.info(
+        `Fetched ${Object.keys(response.list).length} items in this batch. Total items so far: ${Object.keys(allItems.list).length}.`
+      );
+
+      if (Object.keys(response.list).length < limit) {
+        log.info("Fewer items returned than the limit. Finishing fetch loop.");
+        break;
+      }
+
+      offset += limit;
+    } catch (err) {
+      const errorMessage = `Encountered error ${err} while fetching Pocket items with offset ${offset}`;
+      log.error(errorMessage);
+      new Notice(errorMessage);
+      throw err;
+    }
   }
+
+  log.info(`Fetched a total of ${Object.keys(allItems.list).length} Pocket items.`);
+
+  return {
+    timestamp: nextTimestamp,
+    response: allItems,
+  };
 };
+
+
+
 
 export const buildPocketAPI = (): PocketAPI => {
   return {
