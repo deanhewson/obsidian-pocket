@@ -1,3 +1,13 @@
+# purpose of this PR
+
+The Pocket API has changed to only give 30 results at a time, so this plugin can't pull all pocket saves any more. 
+
+I'm slowly learning how to code and am trying to fix that as part of learning - probably don't trust this code without review!
+
+# Status
+
+9/12/2024 - I've figured out where to make the changes and roughly what they look like. Currently troubleshooting why my log additions aren't showing up in Obsidian console when I run this edited version.
+
 # obsidian-pocket
 
 > :heavy_exclamation_mark: I (@nybbles) am looking for someone to take over as
